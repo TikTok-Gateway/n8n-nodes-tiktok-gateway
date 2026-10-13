@@ -6,13 +6,7 @@ import type {
   INodeExecutionData,
 } from "n8n-workflow";
 import { credentials, common, request } from "./shared";
-import {
-  numericID,
-  validMessage,
-  firstWelcomeReply,
-  History,
-  HistoryMessage,
-} from "./history";
+import { numericID, validMessage, History, HistoryMessage } from "./history";
 
 export class TikTokGetMessages implements INodeType {
   description: INodeTypeDescription = {
@@ -36,34 +30,7 @@ export class TikTokGetMessages implements INodeType {
         default: 10,
         typeOptions: { minValue: 1, maxValue: 100 },
         description:
-          "Fetch newest to oldest, up to 20 messages per page. A final empty page is needed to prove exhaustion. Incomplete history is never eligible for the welcome filter.",
-      },
-      {
-        displayName: "Only First Welcome Reply",
-        name: "onlyFirstWelcomeReply",
-        type: "boolean",
-        default: false,
-        description:
-          "Whether to output only a first text reply to the exact opening welcome. Blocks incomplete histories, other conversations, and later replies. Apply an intent filter before sending.",
-      },
-      {
-        displayName: "Exact Welcome Text",
-        name: "welcomeText",
-        type: "string",
-        default: "",
-        typeOptions: { rows: 4 },
-        displayOptions: { show: { onlyFirstWelcomeReply: [true] } },
-        description:
-          "Must match the first outgoing message exactly. An empty value stops execution.",
-      },
-      {
-        displayName: "Allow One Welcome Sticker",
-        name: "allowWelcomeSticker",
-        type: "boolean",
-        default: false,
-        displayOptions: { show: { onlyFirstWelcomeReply: [true] } },
-        description:
-          "Whether to allow exactly one outgoing sticker between the welcome and the first reply",
+          "Fetch newest to oldest, up to 20 messages per page. A final empty page is needed to prove exhaustion.",
       },
     ],
   };
@@ -76,15 +43,10 @@ export class TikTokGetMessages implements INodeType {
       };
       const user = this.getNodeParameter("recipient", i);
       const maxPages = Number(this.getNodeParameter("maxPages", i, 10));
-      const filter =
-        this.getNodeParameter("onlyFirstWelcomeReply", i, false) === true;
-      const welcome = String(this.getNodeParameter("welcomeText", i, ""));
       if (!numericID(user))
         fail("Provide the numeric recipient ID as a string.");
       if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100)
         fail("Maximum Pages must be between 1 and 100.");
-      if (filter && !welcome.trim())
-        fail("Set the exact welcome text before enabling this filter.");
       let cursor = "",
         history: History | undefined;
       const seen = new Map<string, HistoryMessage>();
@@ -179,16 +141,6 @@ export class TikTokGetMessages implements INodeType {
           Date.parse(a.sentAt) - Date.parse(b.sentAt) ||
           (BigInt(a.messageId) < BigInt(b.messageId) ? -1 : 1),
       );
-      if (
-        filter &&
-        !firstWelcomeReply(
-          result,
-          items[i].json,
-          welcome,
-          this.getNodeParameter("allowWelcomeSticker", i, false) === true,
-        )
-      )
-        continue;
       out.push({
         ...items[i],
         json: { ...items[i].json, history: result },

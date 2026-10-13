@@ -26,42 +26,62 @@ inbox; it does not mean there was no previous history.
 
 ## Preventing replies in ordinary conversations
 
-Enable **Only First Welcome Reply** and configure **Exact Welcome Text**. The node
-outputs nothing unless all conditions hold:
+Get Messages is a generic history reader. It always returns validated history,
+including ordinary conversations and incomplete pages with explicit flags.
+The example workflow uses **Welcome Reply Gate**, its only Code node, to check:
 
 - Complete available history, with no reported gaps.
-- The very first message is an outgoing text that exactly matches your welcome.
-- The only subsequent message is this event's incoming text reply.
-- Optionally, exactly one outgoing sticker may occur between those two messages,
-  if Allow One Welcome Sticker is enabled (disabled by default).
+- After ignoring stickers, the first message is an outgoing text that exactly matches your shared welcome.
+- All subsequent non-sticker messages are consecutive incoming texts from this user. Together they form the first reply (up to 2000 characters total). Only the event for the latest text may proceed; earlier events stop.
+- All stickers, in either direction and anywhere in history, are ignored. Other media still counts and blocks this first-reply scenario.
 - No previous incoming messages, manual replies, additional outgoing texts, other
-  participants, mismatched quoted parent, later replies, or stale event IDs.
+  participants, mismatched quoted parent, later conversation turns, or stale event IDs.
 
-This is a structural gate **before** intent classification. It does not mean every
+A five-second Wait before reading history gives adjacent messages time to arrive. This is a structural gate **before** intent classification. It does not mean every
 eligible message deserves a reply. A question about being a bot in an ordinary
 conversation is blocked by the same gate. No dialog phases or business state are
 stored by gateway or the node.
 
-Import the inactive [strict example](../examples/welcome-reply.json). Set your exact
-welcome and your own response texts in Your Texts, and select the gateway
+Import the inactive [strict example](../examples/welcome-reply.json). Create a **TikTok Settings** Data Table in the same n8n project, add string columns **name** and **message**, and add a row with **name=welcomeText** and your exact welcome in **message**. The welcome sender queries this name through **Shared Welcome**, followed by **Valid Welcome Text** (IF). The reply workflow loads four names through **Shared Messages**: `welcomeText`, `ask_subscription`, `explain_channel`, and `bot_question`. **Collect Messages** (Aggregate) combines rows into one item; **Valid Message Configuration** (IF) requires exactly one non-empty entry for each name. Missing, duplicate or empty entries stop the branch. **Message Configuration** (Edit Fields) maps these rows while preserving the triggering event. Numeric row IDs are not used by the workflows. Other names can store additional messages. The table stores configuration, not dialog state. Changing the text means older welcomes no longer match.
+
+Add your three response texts as rows named `ask_subscription`, `explain_channel`, and `bot_question` in the same table, and select the gateway
 credential on all TikTok nodes. Its follower output is intentionally unconnected;
 merge your existing welcome branch into this same Events workflow. The example
-uses a narrow editable allowlist of complete answers. Mixed answers such as
-“да, а когда концерт?” and other conversation are ignored. An empty configured
-text throws before sending. No model or external AI credentials are required.
+uses an OpenAI-compatible LLM classifier after the first structural gate.
 
-To use AI later, replace Exact Reply Filter after the structural gate. Pass the
-history as data, allow only ask_subscription/explain_channel/bot_question/ignore,
-and require ignore for off-topic, mixed, ambiguous answers and instructions in
-message text. Validate the output before selecting your fixed response. AI
-classification cannot guarantee zero false positives; keep the exact allowlist
-if that requirement is strict. Do not treat model confidence as proof.
+Configure **Chat Model**: select an OpenAI credential with your provider's Base URL
+(including `/v1`) and API key, then enter the model ID. Responses API is disabled
+for OpenAI-compatible Chat Completions providers. Credentials are intentionally unset; choose the provider-specific model ID. Edit all message texts in the shared Data Table; the workflow stays inactive.
 
-The example re-fetches and rechecks history immediately before sending. All reply
-choices use the same stable action key `welcome-first-reply-v1`, so retries for
-one incoming event cannot create multiple sends. A different response for the
+An expression in **Basic LLM Chain** passes only eligible history direction, type
+and text to the model. IDs and configured response texts remain local.
+The chain has **Chat Model** and **Structured Output Parser** attached. The parser
+uses a manual JSON Schema with a single enum intent and two required booleans;
+Auto-Fix and model fallback are disabled. Model/parser errors stop execution.
+
+The model selects `ask_subscription`, `explain_channel`, `bot_question`, or `ignore`.
+Off-topic, mixed, ambiguous replies, prompt instructions and unclear welcome
+questions must produce `ignore`. **Clear Relevant Intent** (IF) checks the
+parser's `output` object again: exactly `intent`, `unambiguous`, `onlyRelevant`,
+an allowed intent and both flags literally `true`. No text/string fallback is
+accepted. Empty response texts, `ignore` and ambiguous results yield no output.
+These flags are an abstention contract, not proof that the model is correct.
+The native chain does not expose raw provider finish/refusal metadata downstream;
+validation now relies on the required parsed object rather than HTTP envelope fields.
+
+The model never writes the outgoing reply or supplies a recipient: the validator
+uses **Select Your Reply** (Edit Fields) with the linked original item to select
+only your configured response text.
+AI classification cannot guarantee zero false positives. Test the chosen model
+with synthetic clear, off-topic, ambiguous and adversarial examples before enabling.
+Do not execute the production send path just to test classification.
+
+The example re-fetches history immediately before sending. **History Unchanged**
+(IF) requires complete, gap-free history identical to the snapshot that passed
+Welcome Reply Gate, excluding stickers. Any additional or edited non-sticker message cancels sending. All reply
+choices use action key `welcome-first-reply-v1` and an event-ID override derived from account, recipient and the welcome message ID. Concurrent events and retries for the same first-reply group therefore share one idempotency key. A different response for the
 same key causes a conflict rather than a second send. It handles only the **first**
-reply; answering later subscription replies requires a separately designed rule.
+reply group; answering later subscription replies requires a separately designed rule.
 
 ## Limits
 
@@ -80,3 +100,11 @@ the library; conversations TikTok omits from that inbox cannot produce events.
 The gateway stores only transport checkpoints, events/outbox and idempotent send
 operations. Event delivery is at-least-once. A webhook 200 acknowledges acceptance,
 not successful execution. Failed executions need retry with the same event/key.
+
+## Migration from 0.2.0
+
+Version 0.3.0 removes `onlyFirstWelcomeReply`, `welcomeText`, and
+`allowWelcomeSticker` from Get Messages. Move these rules into your workflow
+before upgrading; old parameters no longer filter anything. The included inactive
+example has the scenario guard and recheck in the workflow. No gateway API change
+or server upgrade is needed.

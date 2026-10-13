@@ -29,15 +29,23 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   if node['type'].startswith('n8n-nodes-tiktok-gateway.'):
    node['credentials']={'tikTokGatewayApi':{'id':'smoke-credential','name':'Synthetic gateway'}}
   if node['type'].endswith('.tikTokSticker'):node['parameters']['stickerId']='1'
+  # Mock only configuration storage; the live Data Table integration is verified separately.
+  if node['name']=='Shared Welcome':
+   node.update(type='n8n-nodes-base.set',typeVersion=3.4,parameters={'mode':'raw','jsonOutput':'{"message":"Synthetic welcome"}','options':{}})
   if node['type']=='n8n-nodes-base.wait':node['parameters']['amount']='={{ $json.eventId === "wait-restart" ? 65 : 0.1 }}'
  (d/'workflow.json').write_text(json.dumps(w))
  # A separate isolated workflow exercises discovery of BOTH new nodes.
  incoming={'id':'incoming-smoke','name':'Incoming smoke','active':False,'settings':{'executionOrder':'v1'},'nodes':[
   {'id':'events','name':'Events','type':'n8n-nodes-tiktok-gateway.tikTokEvents','typeVersion':1,'position':[0,0],'parameters':{},'webhookId':'tiktok-events-gateway'},
-  {'id':'history','name':'History','type':'n8n-nodes-tiktok-gateway.tikTokGetMessages','typeVersion':1,'position':[200,0],'parameters':{'recipient':'={{ $json.userId }}','maxPages':3,'onlyFirstWelcomeReply':True,'welcomeText':'Welcome?','allowWelcomeSticker':False}},
+  {'id':'history','name':'History','type':'n8n-nodes-tiktok-gateway.tikTokGetMessages','typeVersion':1,'position':[200,0],'parameters':{'recipient':'={{ $json.userId }}','maxPages':3}},
   {'id':'reply','name':'Reply','type':'n8n-nodes-tiktok-gateway.tikTokText','typeVersion':1,'position':[400,0],'parameters':{'recipient':'={{ $json.userId }}','text':'Synthetic reply','options':{'actionKey':'welcome-first-reply-v1'}}},
  ],'connections':{'Events':{'main':[[],[{'node':'History','type':'main','index':0}]]},'History':{'main':[[{'node':'Reply','type':'main','index':0}]]}}}
  for node in incoming['nodes']:node['credentials']={'tikTokGatewayApi':{'id':'smoke-credential','name':'Synthetic gateway'}}
+ gate=next(n for n in json.loads((ROOT/'examples/welcome-reply.json').read_text())['nodes'] if n['name']=='Welcome Reply Gate')
+ gate['parameters']['jsCode']="const synthetic = $input.all().map(item => ({...item, json:{...item.json, settings:{welcomeText:'Welcome?'}}}));\n"+gate['parameters']['jsCode'].replace('$input.all()', 'synthetic')
+ incoming['nodes'].append(gate)
+ incoming['connections']['History']={'main':[[{'node':'Welcome Reply Gate','type':'main','index':0}]]}
+ incoming['connections']['Welcome Reply Gate']={'main':[[{'node':'Reply','type':'main','index':0}]]}
  (d/'incoming.json').write_text(json.dumps(incoming))
  (d/'credentials.json').write_text(json.dumps([{'id':'smoke-credential','name':'Synthetic gateway','type':'tikTokGatewayApi','data':{'url':'http://gateway:8080','apiToken':'smoke-api','webhookToken':'smoke-hook'}}]))
  try:

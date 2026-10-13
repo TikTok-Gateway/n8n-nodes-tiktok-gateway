@@ -19,7 +19,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        280,
+        260,
         0
       ],
       "parameters": {
@@ -34,12 +34,12 @@
       "type": "n8n-nodes-tiktok-gateway.tikTokText",
       "typeVersion": 1,
       "position": [
-        560,
+        1300,
         0
       ],
       "parameters": {
         "recipient": "={{ $json.userId }}",
-        "text": "Привет! Спасибо за подписку!",
+        "text": "={{ $json.welcomeText }}",
         "options": {
           "actionKey": "welcome-v1:text-1"
         }
@@ -51,7 +51,7 @@
       "type": "n8n-nodes-tiktok-gateway.tikTokSticker",
       "typeVersion": 1,
       "position": [
-        840,
+        1560,
         0
       ],
       "parameters": {
@@ -60,6 +60,88 @@
         "options": {
           "actionKey": "welcome-v1:sticker-1"
         }
+      }
+    },
+    {
+      "id": "shared-welcome",
+      "name": "Shared Welcome",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "TikTok Settings"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "condition": "eq",
+              "keyValue": "welcomeText"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 2
+      },
+      "notes": "Read message by name=welcomeText. Edit the shared table. Missing or duplicate names prevent sending."
+    },
+    {
+      "id": "welcome-event",
+      "name": "Welcome Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { ...$(\"Wait 1–5 Minutes\").item.json, welcomeText: $json.message } }}",
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "unique-welcome",
+      "name": "Valid Welcome Text",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "unique-text",
+              "leftValue": "={{ $input.all().length === 1 && typeof $json.message === \"string\" && $json.message.trim().length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     }
   ],
@@ -79,7 +161,7 @@
       "main": [
         [
           {
-            "node": "Send Text",
+            "node": "Shared Welcome",
             "type": "main",
             "index": 0
           }
@@ -91,6 +173,39 @@
         [
           {
             "node": "Send Sticker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shared Welcome": {
+      "main": [
+        [
+          {
+            "node": "Valid Welcome Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Welcome Configuration": {
+      "main": [
+        [
+          {
+            "node": "Send Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Welcome Text": {
+      "main": [
+        [
+          {
+            "node": "Welcome Configuration",
             "type": "main",
             "index": 0
           }

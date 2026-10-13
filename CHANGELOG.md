@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- Treat consecutive incoming texts after welcome as one reply; process only the latest event and use a stable welcome-based send key.
+- Read shared welcome and reply texts from an n8n name/message Data Table, with missing/duplicate/empty configuration guards.
+- Ignore stickers throughout the first-reply gate, LLM context and history recheck.
+- Remove welcome-specific parameters and filtering from Get Messages; it only reads history.
+- Move the strict first-reply gate into the inactive example workflow, with one Code node.
+- Use Edit Fields and IF nodes for settings, validated intent routing and unchanged-history recheck.
+- Use Basic LLM Chain, Chat Model and Structured Output Parser for conservative classification.
+- Breaking before 1.0: migrate workflows using the removed filter before upgrading (see docs/INCOMING.md).
+
 ## 0.2.0
 
 - Add Events trigger with separate follower/message outputs and authenticated, validated payloads.

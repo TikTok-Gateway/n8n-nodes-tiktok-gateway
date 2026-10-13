@@ -8,7 +8,7 @@ Installable community nodes for a self-hosted TikTok Gateway. All network reques
 - **TikTok: Send Text** sends the text exactly as entered.
 - **TikTok: Send Sticker** loads numeric sticker IDs from the gateway catalog.
 - **TikTok: Events** receives followers and incoming direct messages on separate outputs.
-- **TikTok: Get Messages** reads paginated history, with an optional strict first-welcome-reply filter.
+- **TikTok: Get Messages** reads paginated history and reports completeness/gaps. Scenario filters belong in workflows.
 
 For context-only replies without dialog stages, see [Incoming messages](docs/INCOMING.md)
 and the inactive [strict example](examples/welcome-reply.json).
@@ -61,7 +61,7 @@ Create one **TikTok Gateway** credential and select it in all TikTok nodes:
 
 Use HTTPS across untrusted networks. `localhost` inside n8n refers to n8n's container. Never enter cookies or tokens in node parameters, workflow JSON, or message text.
 
-Import [the inactive example](examples/welcome.json), select credentials, review the welcome text, and select a sticker from your gateway. The sample retains the original Russian message deliberately: user-authored message text is never translated. All package UI and documentation are English.
+Import [the inactive example](examples/welcome.json), select credentials, create a **TikTok Settings** Data Table with string **name** and **message** columns and a row **name=welcomeText** containing your welcome in **message**, and select a sticker from your gateway. The reply workflow also reads `ask_subscription`, `explain_channel`, and `bot_question` from this table. All four texts are edited in one place; see [shared configuration](docs/INCOMING.md). All package UI and documentation are English.
 
 Publish only one trigger workflow for a gateway. Configure its production URL in the gateway: `https://YOUR_N8N/webhook/tiktok-follower-gateway`. The path is intentionally compatible with the original custom nodes. The current gateway has one webhook URL; branch within this workflow for multiple actions. The trigger never registers URLs or changes gateway configuration automatically. Test URLs require the editor to be listening; do not replace the production URL for casual testing.
 

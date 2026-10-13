@@ -1,6 +1,6 @@
 # n8n-nodes-tiktok-gateway
 
-Private, installable community nodes for a self-hosted TikTok Gateway. All network requests go through your gateway. No TikTok cookies or direct TikTok requests are used.
+Installable community nodes for a self-hosted TikTok Gateway. All network requests go through your gateway. No TikTok cookies or direct TikTok requests are used.
 
 - **TikTok: New Follower** authenticates follower webhooks with a separate token.
 - **TikTok: Send Text** sends the text exactly as entered.
@@ -12,7 +12,7 @@ Both send nodes return only after the gateway reports `succeeded`. Failed, uncer
 
 ## Compatibility and installation
 
-Tested with **n8n 2.43.4**, its `n8n-workflow 2.43.2`, and Node.js 22+. Other n8n releases are not certified. This is a private self-hosted package, not an n8n Cloud verified node. The development lockfile overrides Axios to a patched release; the installed package uses the host n8n HTTP runtime, whose updates remain the host administrator’s responsibility. No production dependencies are bundled; n8n provides `n8n-workflow`.
+Tested with **n8n 2.43.4**, its `n8n-workflow 2.43.2`, and Node.js 22+. Other n8n releases are not certified. The source repository is public. The package is for self-hosted n8n and is not an n8n Cloud verified node. It is not published on npm; install the built archive as described below. The development lockfile overrides Axios to a patched release; the installed package uses the host n8n HTTP runtime, whose updates remain the host administrator’s responsibility. No production dependencies are bundled; n8n provides `n8n-workflow`.
 
 Build an archive:
 
@@ -68,10 +68,12 @@ Webhook acceptance and downstream completion are separate: a later failure does 
 
 ## Development and releases
 
+To install from the public source, clone this repository, run `npm ci` and `npm pack`, then copy the resulting archive into your n8n container using the commands above. Entering the package name in the Community Nodes installer will not work until a separate npm publication is made.
+
 Source is strict TypeScript in `nodes/` and `credentials/`; compiled files and SVG assets go to `dist/`. The API snapshot is in [docs/openapi.json](docs/openapi.json). Adapted from the local `tiktok-gateway/n8n` implementation (the earlier `tiktok-chat-bot` directory was unavailable).
 
 `npm test` covers keys, terminal errors, polling, timeouts, sanitization, payload handling, item links, catalog, and migration. `npm run smoke` uses unique disposable Docker containers, a stock pinned n8n image, temporary synthetic credentials and a mock API. It verifies package discovery, duplicate delivery, failed/uncertain blocking, crash/replay, saved Wait restart, and execution diagnostics. It never connects to a real gateway or TikTok, and removes only its own containers/network. Docker must be running; pull the pinned image first if it is not cached. GitHub Actions builds, tests, packs, and runs the same smoke test.
 
-For a release: update the version and lockfile (`npm version patch --no-git-tag-version`), update [CHANGELOG.md](CHANGELOG.md), run the checks, then commit and tag `vX.Y.Z`. CI uploads the `.tgz` as a build artifact. Distribute it privately. `private: true` prevents accidental npm publication; no publishing workflow exists. Install a newer archive using the same commands, then restart during maintenance. To roll back, install the retained previous archive and restart; preserve workflow IDs, credentials, and keys in either direction.
+For a release: update the version and lockfile (`npm version patch --no-git-tag-version`), update [CHANGELOG.md](CHANGELOG.md), run the checks, then commit and tag `vX.Y.Z`. CI uploads the `.tgz` as a build artifact. `private: true` is an npm publication guard and does not make the GitHub repository private; no publishing workflow exists. Install a newer archive using the same commands, then restart during maintenance. To roll back, install the retained previous archive and restart; preserve workflow IDs, credentials, and keys in either direction.
 
 References: [n8n node parameters](https://docs.n8n.io/connect/create-nodes/build-your-node/reference/base-files/standard-parameters/) and [manual package installation](https://docs.n8n.io/integrations/community-nodes/installation-and-management/manual-installation/).

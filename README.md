@@ -29,7 +29,9 @@ Install the archive into the persistent n8n user directory without rebuilding yo
 
 ```sh
 N8N_CONTAINER=YOUR_N8N_CONTAINER
-docker cp n8n-nodes-tiktok-gateway-0.1.0.tgz "$N8N_CONTAINER":/tmp/tiktok-gateway.tgz
+# Set this to the archive downloaded from Releases.
+PACKAGE_ARCHIVE=./n8n-nodes-tiktok-gateway-0.1.1.tgz
+docker cp "$PACKAGE_ARCHIVE" "$N8N_CONTAINER":/tmp/tiktok-gateway.tgz
 docker exec -u node "$N8N_CONTAINER" sh -c 'mkdir -p /home/node/.n8n/nodes && cd /home/node/.n8n/nodes && npm install --offline --ignore-scripts --legacy-peer-deps --no-audit --no-fund /tmp/tiktok-gateway.tgz'
 docker restart "$N8N_CONTAINER"
 ```

@@ -14,7 +14,9 @@ Both send nodes return only after the gateway reports `succeeded`. Failed, uncer
 
 Tested with **n8n 2.43.4**, its `n8n-workflow 2.43.2`, and Node.js 22+. Other n8n releases are not certified. The source repository is public. The package is for self-hosted n8n and is not an n8n Cloud verified node. It is not published on npm; install the built archive as described below. The development lockfile overrides Axios to a patched release; the installed package uses the host n8n HTTP runtime, whose updates remain the host administrator’s responsibility. No production dependencies are bundled; n8n provides `n8n-workflow`.
 
-Build an archive:
+Download the ready-to-install `.tgz` from [GitHub Releases](https://github.com/TikTok-Gateway/n8n-nodes-tiktok-gateway/releases/latest). You do not need Node.js or a local build to use a release archive.
+
+For development, build an archive:
 
 ```sh
 npm ci
@@ -74,6 +76,8 @@ Source is strict TypeScript in `nodes/` and `credentials/`; compiled files and S
 
 `npm test` covers keys, terminal errors, polling, timeouts, sanitization, payload handling, item links, catalog, and migration. `npm run smoke` uses unique disposable Docker containers, a stock pinned n8n image, temporary synthetic credentials and a mock API. It verifies package discovery, duplicate delivery, failed/uncertain blocking, crash/replay, saved Wait restart, and execution diagnostics. It never connects to a real gateway or TikTok, and removes only its own containers/network. Docker must be running; pull the pinned image first if it is not cached. GitHub Actions builds, tests, packs, and runs the same smoke test.
 
-For a release: update the version and lockfile (`npm version patch --no-git-tag-version`), update [CHANGELOG.md](CHANGELOG.md), run the checks, then commit and tag `vX.Y.Z`. CI uploads the `.tgz` as a build artifact. `private: true` is an npm publication guard and does not make the GitHub repository private; no publishing workflow exists. Install a newer archive using the same commands, then restart during maintenance. To roll back, install the retained previous archive and restart; preserve workflow IDs, credentials, and keys in either direction.
+Every push to `main`, pull request, or manual Actions run builds and tests the package and uploads its `.tgz` under **Actions → Build and test → Artifacts → npm-package**.
+
+For a release: update the version and lockfile (`npm version patch --no-git-tag-version`), update [CHANGELOG.md](CHANGELOG.md), run the checks, then commit and tag `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`). After unit and isolated n8n smoke tests pass, the pipeline creates a GitHub Release containing the exact tested `.tgz` and `SHA256SUMS`. The tag must match `package.json`. Release assets are not overwritten on reruns; use a new version for changes. `private: true` is an npm publication guard and does not make the GitHub repository private; the pipeline does not publish to the npm registry. Install a newer archive using the same commands, then restart during maintenance. To roll back, install the retained previous archive and restart; preserve workflow IDs, credentials, and keys in either direction.
 
 References: [n8n node parameters](https://docs.n8n.io/connect/create-nodes/build-your-node/reference/base-files/standard-parameters/) and [manual package installation](https://docs.n8n.io/integrations/community-nodes/installation-and-management/manual-installation/).

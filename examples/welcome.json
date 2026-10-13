@@ -1,0 +1,106 @@
+{
+  "name": "TikTok — Welcome New Follower",
+  "nodes": [
+    {
+      "id": "follower-trigger",
+      "name": "New Follower",
+      "type": "n8n-nodes-tiktok-gateway.tikTokFollowerTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {},
+      "webhookId": "tiktok-follower-gateway"
+    },
+    {
+      "id": "welcome-delay",
+      "name": "Wait 1–5 Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": "={{ Math.floor(Math.random() * 241) + 60 }}",
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "welcome-text",
+      "name": "Send Text",
+      "type": "n8n-nodes-tiktok-gateway.tikTokText",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "recipient": "={{ $json.userId }}",
+        "text": "Привет! Спасибо за подписку!",
+        "options": {
+          "actionKey": "welcome-v1:text-1"
+        }
+      }
+    },
+    {
+      "id": "welcome-sticker",
+      "name": "Send Sticker",
+      "type": "n8n-nodes-tiktok-gateway.tikTokSticker",
+      "typeVersion": 1,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "recipient": "={{ $json.userId }}",
+        "stickerId": "REPLACE_WITH_CATALOG_ID",
+        "options": {
+          "actionKey": "welcome-v1:sticker-1"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Follower": {
+      "main": [
+        [
+          {
+            "node": "Wait 1–5 Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1–5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Send Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Text": {
+      "main": [
+        [
+          {
+            "node": "Send Sticker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

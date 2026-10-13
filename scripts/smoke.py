@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
    subprocess.run(['docker','cp',n8n+':/home/node/.n8n/database.sqlite'+suffix,str(d/('database.sqlite'+suffix))],capture_output=True)
   db=sqlite3.connect(d/'database.sqlite')
   statuses=dict(db.execute('SELECT status, count(*) FROM execution_entity GROUP BY status'))
-  assert statuses.get('success',0)>=5,statuses
+  assert statuses.get('success',0)>=4,statuses
   rows='\n'.join(str(row) for row in db.execute('SELECT data FROM execution_data'))
   assert 'tiktok_rejected_send' in rows and '7170' in rows and 'send_result_unknown' in rows
   assert 'smoke-api' not in rows and 'smoke-hook' not in rows

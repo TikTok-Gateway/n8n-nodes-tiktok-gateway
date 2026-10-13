@@ -41,6 +41,14 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'))
   def emit(event,auth='smoke-hook',**overrides):
    return request(nurl,'/webhook/tiktok-follower-gateway',{'schemaVersion':'1','type':'follower.created','eventId':event,'accountId':'100','occurredAt':'2026-01-01T00:00:00Z','detectedAt':'2026-01-01T00:00:01Z','data':{'userId':'200','username':'synthetic'},**overrides},auth)
+  def webhook_ready():
+   try: emit('readiness-probe', auth='wrong')
+   except urllib.error.HTTPError as e:
+    if e.code == 401: return True
+    if e.code == 404: return False
+    raise
+   raise AssertionError('Webhook accepted an unauthorized readiness probe')
+  until(webhook_ready)
   for kwargs,code in [({'auth':'wrong'},401),({'data':{'userId':200}},400),({'accountId':None},400)]:
    try:emit('invalid',**kwargs)
    except urllib.error.HTTPError as e:assert e.code==code,(e.code,code)
@@ -51,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   for event in ['failed','uncertain']:
    emit(event);until(lambda:ops(event) and ops(event)[0]['state']==event);time.sleep(2);assert len(ops(event))==1
   emit('restart');until(lambda:ops('restart') and ops('restart')[0]['polls']>=1)
-  run('docker','kill',n8n);run('docker','start',n8n);nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'))
+  run('docker','kill',n8n);run('docker','start',n8n);nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'));until(webhook_ready)
   emit('restart');until(lambda:complete('restart'));assert len(ops('restart'))==2
   emit('wait-restart');time.sleep(3);assert not ops('wait-restart')
   run('docker','restart','-t','3',n8n);nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'))

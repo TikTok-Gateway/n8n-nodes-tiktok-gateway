@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Build and attach tested package archives and checksums to GitHub Releases automatically on version tags.
+- Wait for webhook registration during isolated n8n startup checks.
+
 ## 0.1.0
 
 - Extracted three legacy TikTok Gateway nodes into an installable TypeScript package.

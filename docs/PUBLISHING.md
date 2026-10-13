@@ -10,6 +10,14 @@ The package must exist on npm before a trusted publisher can be configured. An n
 npm publish ./n8n-nodes-tiktok-gateway-0.1.2.tgz --access public --ignore-scripts
 ```
 
+If direct publication returns a 2FA-related 403 without opening an authentication prompt, use npm's staged publishing flow:
+
+```sh
+npm stage publish ./n8n-nodes-tiktok-gateway-0.1.2.tgz --access public --ignore-scripts
+```
+
+Wait until `npm stage list n8n-nodes-tiktok-gateway` shows `staged`, then approve the version in npmjs.com's **Staged Packages** tab with 2FA. A staged placeholder is not an installable release of these nodes. If CLI trust configuration is rejected, configure it on the package settings page instead.
+
 Then configure the trusted publisher in the package settings on npmjs.com:
 
 - Provider: GitHub Actions

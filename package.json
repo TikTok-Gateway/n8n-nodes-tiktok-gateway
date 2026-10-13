@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tiktok-gateway",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Confirmed TikTok Gateway messages and authenticated follower webhooks for n8n",
   "license": "UNLICENSED",
   "author": "TikTok Gateway",

@@ -12,9 +12,9 @@ Both send nodes return only after the gateway reports `succeeded`. Failed, uncer
 
 ## Compatibility and installation
 
-After the first npm release, install by name in self-hosted n8n: **Settings → Community Nodes → Install**, enter `n8n-nodes-tiktok-gateway`, acknowledge the community package prompt, and select **Install**. Configure one TikTok Gateway credential for all three nodes. Unverified community packages must be enabled; this does not imply n8n Cloud verification.
+Install by name in self-hosted n8n: **Settings → Community Nodes → Install**, enter `n8n-nodes-tiktok-gateway`, acknowledge the community package prompt, and select **Install**. Configure one TikTok Gateway credential for all three nodes. Unverified community packages must be enabled; this does not imply n8n Cloud verification.
 
-Tested with **n8n 2.43.4**, its `n8n-workflow 2.43.2`, and Node.js 22+. Other n8n releases are not certified. The source repository is public. The package is for self-hosted n8n and is not an n8n Cloud verified node. The release pipeline publishes to npm after tests pass. The first publication requires the one-time setup described in [Publishing](docs/PUBLISHING.md). The development lockfile overrides Axios to a patched release; the installed package uses the host n8n HTTP runtime, whose updates remain the host administrator’s responsibility. No production dependencies are bundled; n8n provides `n8n-workflow`.
+Tested with **n8n 2.43.4**, its `n8n-workflow 2.43.2`, and Node.js 22+. Other n8n releases are not certified. The source repository is public. The package is for self-hosted n8n and is not an n8n Cloud verified node. The release pipeline publishes to npm after tests pass. Maintainer setup is documented in [Publishing](docs/PUBLISHING.md). The development lockfile overrides Axios to a patched release; the installed package uses the host n8n HTTP runtime, whose updates remain the host administrator’s responsibility. No production dependencies are bundled; n8n provides `n8n-workflow`.
 
 Download the ready-to-install `.tgz` from [GitHub Releases](https://github.com/TikTok-Gateway/n8n-nodes-tiktok-gateway/releases/latest). You do not need Node.js or a local build to use a release archive.
 
@@ -74,7 +74,7 @@ Webhook acceptance and downstream completion are separate: a later failure does 
 
 ## Development and releases
 
-To install from the public source, clone this repository, run `npm ci` and `npm pack`, then copy the resulting archive into your n8n container using the commands above. Alternatively, use the Community Nodes installer after the first npm release.
+To install from the public source, clone this repository, run `npm ci` and `npm pack`, then copy the resulting archive into your n8n container using the commands above. Alternatively, use the Community Nodes installer.
 
 Source is strict TypeScript in `nodes/` and `credentials/`; compiled files and SVG assets go to `dist/`. The API snapshot is in [docs/openapi.json](docs/openapi.json). Adapted from the local `tiktok-gateway/n8n` implementation (the earlier `tiktok-chat-bot` directory was unavailable).
 

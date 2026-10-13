@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Release through GitHub Actions using npm Trusted Publishing.
+- Make npm Community Nodes installation the primary installation path.
+
 ## 0.1.2
 
 - Prepare public npm distribution and tag-triggered Trusted Publishing with provenance.

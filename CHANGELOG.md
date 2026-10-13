@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Prepare public npm distribution and tag-triggered Trusted Publishing with provenance.
+- Document Community Nodes installation and one-time npm owner setup.
+
 ## 0.1.1
 
 - Build and attach tested package archives and checksums to GitHub Releases automatically on version tags.

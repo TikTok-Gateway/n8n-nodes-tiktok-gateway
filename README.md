@@ -6,7 +6,7 @@ Installable community nodes for a self-hosted TikTok Gateway. All network reques
 
 - **TikTok: New Follower** authenticates follower webhooks with a separate token.
 - **TikTok: Send Text** sends the text exactly as entered.
-- **TikTok: Send Sticker** loads numeric sticker IDs from the gateway catalog.
+- **TikTok: Send Sticker** loads named, numeric sticker IDs from the persistent gateway catalogue. Import a sticker once with `POST /v1/stickers/import` (gateway 0.3.0+); the source chat is not needed afterwards.
 - **TikTok: Events** receives followers and incoming direct messages on separate outputs.
 - **TikTok: Get Messages** reads paginated history and reports completeness/gaps. Scenario filters belong in workflows.
 

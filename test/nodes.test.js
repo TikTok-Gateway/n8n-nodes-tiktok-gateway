@@ -191,6 +191,13 @@ test("sticker catalog and send use only gateway", async () => {
     await new TikTokSticker().methods.loadOptions.getStickers.call(ctx),
     [{ name: "Sticker 9007199254740993", value: "9007199254740993" }],
   );
+  ctx.helpers.httpRequest = async () => ({
+    stickers: [{ id: "9007199254740993", name: "Greeting" }],
+  });
+  assert.deepEqual(
+    await new TikTokSticker().methods.loadOptions.getStickers.call(ctx),
+    [{ name: "Greeting (9007199254740993)", value: "9007199254740993" }],
+  );
 });
 test("migration preserves IDs, credentials, connections, message and explicit keys", () => {
   const { migrate } = require("../scripts/migrate-workflow.cjs");

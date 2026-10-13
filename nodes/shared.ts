@@ -252,7 +252,7 @@ export async function execute(
 }
 export async function getStickers(this: ILoadOptionsFunctions) {
   const data = (await request(this, "GET", "/v1/stickers")) as {
-    stickers?: { id: string }[];
+    stickers?: { id: string; name?: string }[];
   };
   if (
     !Array.isArray(data?.stickers) ||
@@ -264,5 +264,11 @@ export async function getStickers(this: ILoadOptionsFunctions) {
       this.getNode(),
       "Invalid gateway sticker catalog.",
     );
-  return data.stickers.map((s) => ({ name: `Sticker ${s.id}`, value: s.id }));
+  return data.stickers.map((s) => ({
+    name:
+      typeof s.name === "string" && s.name
+        ? `${s.name} (${s.id})`
+        : `Sticker ${s.id}`,
+    value: s.id,
+  }));
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Show saved sticker names and stable IDs from the persistent gateway catalogue.
+- Keep older gateway catalogues without names compatible.
+
 ## 0.3.0
 
 - Treat consecutive incoming texts after welcome as one reply; process only the latest event and use a stable welcome-based send key.

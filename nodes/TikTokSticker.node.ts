@@ -27,7 +27,7 @@ export class TikTokSticker implements INodeType {
         typeOptions: { loadOptionsMethod: "getStickers" },
         default: "",
         required: true,
-        description: "Stickers from the configured source conversation",
+        description: "Saved stickers from the gateway catalogue",
       },
       shared.advanced,
     ],

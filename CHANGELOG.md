@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Fix the local archive path in the npm publication job.
+
 ## 0.1.3
 
 - Release through GitHub Actions using npm Trusted Publishing.

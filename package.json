@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tiktok-gateway",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Confirmed TikTok Gateway messages and authenticated follower webhooks for n8n",
   "license": "UNLICENSED",
   "author": "TikTok Gateway",
@@ -46,7 +46,9 @@
     "nodes": [
       "dist/nodes/TikTokFollowerTrigger.node.js",
       "dist/nodes/TikTokText.node.js",
-      "dist/nodes/TikTokSticker.node.js"
+      "dist/nodes/TikTokSticker.node.js",
+      "dist/nodes/TikTokEvents.node.js",
+      "dist/nodes/TikTokGetMessages.node.js"
     ]
   },
   "overrides": {

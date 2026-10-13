@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Add Events trigger with separate follower/message outputs and authenticated, validated payloads.
+- Add Get Messages with pagination, gap/exhaustion metadata and a fail-closed first-welcome-reply filter.
+- Add an inactive context-only reply example with exact intent allowlists and a final history recheck.
+- Keep existing follower/send nodes and stable idempotency behavior compatible; no dialog stages.
+
 ## 0.1.5
 
 - Use the TikTok Gateway logo for all three n8n nodes and the npm README.

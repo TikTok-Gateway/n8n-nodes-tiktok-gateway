@@ -1,0 +1,157 @@
+{
+  "name": "TikTok — Strict First Welcome Reply",
+  "nodes": [
+    {
+      "id": "events",
+      "name": "Events",
+      "type": "n8n-nodes-tiktok-gateway.tikTokEvents",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {},
+      "webhookId": "tiktok-events-gateway"
+    },
+    {
+      "id": "configure",
+      "name": "Your Texts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Set your exact sent welcome and response texts. No texts are generated.\nconst settings = {\n  welcomeText: \"\",\n  allowWelcomeSticker: false,\n  replies: { ask_subscription: \"\", explain_channel: \"\", bot_question: \"\" },\n};\nif (!settings.welcomeText.trim()) throw new Error(\"Set your exact welcome text first.\");\nreturn $input.all().map(item => ({ ...item, json: { ...item.json, settings } }));"
+      }
+    },
+    {
+      "id": "history",
+      "name": "First Welcome Reply Only",
+      "type": "n8n-nodes-tiktok-gateway.tikTokGetMessages",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "recipient": "={{ $json.userId }}",
+        "maxPages": 10,
+        "onlyFirstWelcomeReply": true,
+        "welcomeText": "={{ $json.settings.welcomeText }}",
+        "allowWelcomeSticker": "={{ $json.settings.allowWelcomeSticker }}"
+      }
+    },
+    {
+      "id": "intent",
+      "name": "Exact Reply Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Conservative example: only these complete replies are accepted.\n// Extra questions, mixed intent, emoji-only answers and all other text are ignored.\nconst accepted = {\n  ask_subscription: [\"да\", \"знаю\", \"да знаю\", \"да, знаю\"],\n  explain_channel: [\"нет\", \"не знаю\", \"нет не знаю\", \"нет, не знаю\"],\n  bot_question: [\"ты бот\", \"ты бот?\", \"это бот\", \"это бот?\"],\n};\nconst output = [];\nfor (const item of $input.all()) {\n  const text = item.json.message.text.trim().toLowerCase();\n  const action = Object.keys(accepted).find(key => accepted[key].includes(text));\n  if (!action) continue;\n  const replyText = item.json.settings.replies[action];\n  if (typeof replyText !== \"string\" || !replyText.trim()) throw new Error(\"Set your response text for \" + action);\n  output.push({ ...item, json: { ...item.json, action, replyText } });\n}\nreturn output;"
+      }
+    },
+    {
+      "id": "recheck",
+      "name": "Recheck Before Sending",
+      "type": "n8n-nodes-tiktok-gateway.tikTokGetMessages",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "recipient": "={{ $json.userId }}",
+        "maxPages": 10,
+        "onlyFirstWelcomeReply": true,
+        "welcomeText": "={{ $json.settings.welcomeText }}",
+        "allowWelcomeSticker": "={{ $json.settings.allowWelcomeSticker }}"
+      }
+    },
+    {
+      "id": "send",
+      "name": "Your Reply",
+      "type": "n8n-nodes-tiktok-gateway.tikTokText",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "recipient": "={{ $json.userId }}",
+        "text": "={{ $json.replyText }}",
+        "options": {
+          "actionKey": "welcome-first-reply-v1"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Events": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Your Texts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Your Texts": {
+      "main": [
+        [
+          {
+            "node": "First Welcome Reply Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Welcome Reply Only": {
+      "main": [
+        [
+          {
+            "node": "Exact Reply Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exact Reply Filter": {
+      "main": [
+        [
+          {
+            "node": "Recheck Before Sending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recheck Before Sending": {
+      "main": [
+        [
+          {
+            "node": "Your Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

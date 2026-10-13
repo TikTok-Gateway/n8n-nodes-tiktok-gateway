@@ -19,6 +19,46 @@ http
       path: req.url,
       key: req.headers["idempotency-key"],
     });
+    if (req.url.startsWith("/v1/conversations/")) {
+      const url = new URL(req.url, "http://mock");
+      const userId = url.pathname.split("/")[3];
+      const base = {
+        accountId: "100",
+        userId,
+        conversationId: "0:1:100:" + userId,
+        hasGaps: false,
+      };
+      if (url.searchParams.has("cursor"))
+        return reply(200, {
+          ...base,
+          messages: [],
+          nextCursor: "",
+          exhausted: true,
+        });
+      return reply(200, {
+        ...base,
+        exhausted: false,
+        nextCursor: "10",
+        messages: [
+          {
+            messageId: "10",
+            senderId: "100",
+            direction: "outgoing",
+            type: "text",
+            text: userId === "201" ? "Welcome?" : "Ordinary conversation",
+            sentAt: "2026-01-01T00:00:00Z",
+          },
+          {
+            messageId: "30",
+            senderId: userId,
+            direction: "incoming",
+            type: "text",
+            text: "yes",
+            sentAt: "2026-01-01T00:01:00Z",
+          },
+        ],
+      });
+    }
     if (req.url === "/v1/status") return reply(200, { paused: false });
     if (req.url === "/v1/stickers")
       return reply(200, { stickers: [{ id: "1" }] });

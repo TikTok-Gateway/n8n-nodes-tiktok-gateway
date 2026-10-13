@@ -16,7 +16,7 @@ export const common: INodeProperties[] = [
     default: "={{ $json.userId }}",
     required: true,
     description:
-      "Numeric TikTok user ID, automatically taken from the new follower",
+      "Numeric TikTok user ID, automatically taken from the source event",
   },
 ];
 export const advanced: INodeProperties = {
@@ -104,7 +104,9 @@ export async function request(
         : "no response";
     throw new NodeOperationError(
       ctx.getNode(),
-      `Gateway: ${status}. The command may have been accepted; retry only with the same event ID and action key.`,
+      method === "GET"
+        ? `Gateway: ${status}. Read failed; no command was sent by this request.`
+        : `Gateway: ${status}. The command may have been accepted; retry only with the same event ID and action key.`,
     );
   }
 }
@@ -158,7 +160,7 @@ export async function execute(
     if (typeof recipient !== "string" || !/^[1-9]\d*$/.test(recipient))
       fail("Provide the numeric recipient ID as a string.");
     if (typeof eventId !== "string" || !eventId.trim())
-      fail("Missing event ID. Connect this node to the New Follower trigger.");
+      fail("Missing event ID. Connect this node to a TikTok trigger.");
     const action =
       options.actionKey || `${this.getWorkflow().id}:${this.getNode().id}`;
     if (typeof action !== "string" || /[\r\n]/.test(action))

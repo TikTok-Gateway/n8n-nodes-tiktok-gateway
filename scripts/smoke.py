@@ -31,13 +31,21 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   if node['type'].endswith('.tikTokSticker'):node['parameters']['stickerId']='1'
   if node['type']=='n8n-nodes-base.wait':node['parameters']['amount']='={{ $json.eventId === "wait-restart" ? 65 : 0.1 }}'
  (d/'workflow.json').write_text(json.dumps(w))
+ # A separate isolated workflow exercises discovery of BOTH new nodes.
+ incoming={'id':'incoming-smoke','name':'Incoming smoke','active':False,'settings':{'executionOrder':'v1'},'nodes':[
+  {'id':'events','name':'Events','type':'n8n-nodes-tiktok-gateway.tikTokEvents','typeVersion':1,'position':[0,0],'parameters':{},'webhookId':'tiktok-events-gateway'},
+  {'id':'history','name':'History','type':'n8n-nodes-tiktok-gateway.tikTokGetMessages','typeVersion':1,'position':[200,0],'parameters':{'recipient':'={{ $json.userId }}','maxPages':3,'onlyFirstWelcomeReply':True,'welcomeText':'Welcome?','allowWelcomeSticker':False}},
+  {'id':'reply','name':'Reply','type':'n8n-nodes-tiktok-gateway.tikTokText','typeVersion':1,'position':[400,0],'parameters':{'recipient':'={{ $json.userId }}','text':'Synthetic reply','options':{'actionKey':'welcome-first-reply-v1'}}},
+ ],'connections':{'Events':{'main':[[],[{'node':'History','type':'main','index':0}]]},'History':{'main':[[{'node':'Reply','type':'main','index':0}]]}}}
+ for node in incoming['nodes']:node['credentials']={'tikTokGatewayApi':{'id':'smoke-credential','name':'Synthetic gateway'}}
+ (d/'incoming.json').write_text(json.dumps(incoming))
  (d/'credentials.json').write_text(json.dumps([{'id':'smoke-credential','name':'Synthetic gateway','type':'tikTokGatewayApi','data':{'url':'http://gateway:8080','apiToken':'smoke-api','webhookToken':'smoke-hook'}}]))
  try:
   run('docker','network','create',name)
   run('docker','run','-d','--name',gateway,'--network',name,'--network-alias','gateway','-v',str(d)+':/fixture:ro','-p','127.0.0.1::8080','--entrypoint','node',IMAGE,'/fixture/mock.cjs')
   gurl='http://'+run('docker','port',gateway,'8080/tcp');until(lambda:request(gurl,'/inspect'))
   run('docker','run','-d','--name',n8n,'--network',name,'-v',str(d)+':/fixture:ro','-p','127.0.0.1::5678','-e','N8N_DIAGNOSTICS_ENABLED=false','-e','N8N_VERSION_NOTIFICATIONS_ENABLED=false','-e','N8N_ENCRYPTION_KEY=synthetic-smoke-only-key','--entrypoint','/bin/sh',IMAGE,'-c',
-   'set -eu; if [ ! -f /home/node/.n8n/smoke-ready ]; then mkdir -p /home/node/.n8n/nodes && cd /home/node/.n8n/nodes && npm install --offline --ignore-scripts --legacy-peer-deps --no-audit --no-fund /fixture/package.tgz && n8n import:credentials --input=/fixture/credentials.json && n8n import:workflow --input=/fixture/workflow.json && n8n publish:workflow --id=package-smoke && touch /home/node/.n8n/smoke-ready; fi; exec n8n start')
+   'set -eu; if [ ! -f /home/node/.n8n/smoke-ready ]; then mkdir -p /home/node/.n8n/nodes && cd /home/node/.n8n/nodes && npm install --offline --ignore-scripts --legacy-peer-deps --no-audit --no-fund /fixture/package.tgz && n8n import:credentials --input=/fixture/credentials.json && n8n import:workflow --input=/fixture/workflow.json && n8n publish:workflow --id=package-smoke && n8n import:workflow --input=/fixture/incoming.json && n8n publish:workflow --id=incoming-smoke && touch /home/node/.n8n/smoke-ready; fi; exec n8n start')
   nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'))
   def emit(event,auth='smoke-hook',**overrides):
    return request(nurl,'/webhook/tiktok-follower-gateway',{'schemaVersion':'1','type':'follower.created','eventId':event,'accountId':'100','occurredAt':'2026-01-01T00:00:00Z','detectedAt':'2026-01-01T00:00:01Z','data':{'userId':'200','username':'synthetic'},**overrides},auth)
@@ -55,6 +63,14 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
    else:raise AssertionError('Invalid webhook accepted')
   def ops(event):return [o for o in request(gurl,'/inspect')['operations'] if o['key'].startswith(event+':')]
   def complete(event):return len(ops(event))==2 and all(o['state']=='succeeded' for o in ops(event))
+  def emit_message(user,event):
+   message={'messageId':'30','senderId':user,'direction':'incoming','type':'text','text':'yes','sentAt':'2026-01-01T00:01:00Z'}
+   return request(nurl,'/webhook/tiktok-events-gateway',{'schemaVersion':'1','type':'message.received','eventId':event,'accountId':'100','occurredAt':message['sentAt'],'detectedAt':'2026-01-01T00:01:01Z','data':{'userId':user,'conversationId':'0:1:100:'+user,'messageId':'30','message':message}},'smoke-hook')
+  emit_message('201','incoming-good');until(lambda:len(ops('incoming-good'))==1 and ops('incoming-good')[0]['state']=='succeeded')
+  emit_message('201','incoming-good');emit_message('202','incoming-ordinary');time.sleep(3)
+  assert len(ops('incoming-good'))==1
+  assert len(ops('incoming-ordinary'))==0
+  assert any('/v1/conversations/202/messages?cursor=10'==c['path'] for c in request(gurl,'/inspect')['calls'])
   emit('normal');until(lambda:complete('normal'));emit('normal');time.sleep(3);assert len(ops('normal'))==2
   for event in ['failed','uncertain']:
    emit(event);until(lambda:ops(event) and ops(event)[0]['state']==event);time.sleep(2);assert len(ops(event))==1
@@ -76,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   rows='\n'.join(str(row) for row in db.execute('SELECT data FROM execution_data'))
   assert 'tiktok_rejected_send' in rows and '7170' in rows and 'send_result_unknown' in rows
   assert 'smoke-api' not in rows and 'smoke-hook' not in rows
-  print('PASS: npm tarball discovery; webhook 401/400; text + sticker; duplicate keys; failed/uncertain block; active-poll crash + replay; persisted Wait restart; no resume; saved execution diagnostics; no tokens. Statuses:',statuses)
+  print('PASS: Events + Get Messages discovery; incoming pagination, ordinary-chat block and duplicate reply; npm tarball discovery; webhook 401/400; text + sticker; duplicate keys; failed/uncertain block; active-poll crash + replay; persisted Wait restart; no resume; saved execution diagnostics; no tokens. Statuses:',statuses)
  except Exception as e:
   if isinstance(e,subprocess.CalledProcessError):print(e.output[-4000:])
   try: print('Mock operations:',request(gurl,'/inspect')['operations'])

@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/TikTok-Gateway/n8n-nodes-tiktok-gateway/v0.1.5/nodes/tiktok.png" alt="TikTok Gateway logo" width="128" height="128">
+
 # n8n-nodes-tiktok-gateway
 
 Installable community nodes for a self-hosted TikTok Gateway. All network requests go through your gateway. No TikTok cookies or direct TikTok requests are used.

@@ -13,7 +13,7 @@ export class TikTokFollowerTrigger implements INodeType {
     name: "tikTokFollowerTrigger",
     group: ["trigger"],
     version: 1,
-    icon: "file:tiktok.svg",
+    icon: "file:tiktok.png",
     description: "Start a workflow when someone follows the account",
     defaults: { name: "New Follower" },
     inputs: [],

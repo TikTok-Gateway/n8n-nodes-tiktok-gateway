@@ -12,7 +12,7 @@ export class TikTokText implements INodeType {
     name: "tikTokText",
     group: ["output"],
     version: 1,
-    icon: "file:tiktok.svg",
+    icon: "file:tiktok.png",
     description: "Send a text message and wait for confirmation",
     defaults: { name: "Send Text" },
     inputs: ["main"],

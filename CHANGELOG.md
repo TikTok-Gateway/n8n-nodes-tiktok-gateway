@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Use the TikTok Gateway logo for all three n8n nodes and the npm README.
+
 ## 0.1.4
 
 - Fix the local archive path in the npm publication job.

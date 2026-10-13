@@ -12,7 +12,7 @@ export class TikTokSticker implements INodeType {
     name: "tikTokSticker",
     group: ["output"],
     version: 1,
-    icon: "file:tiktok.svg",
+    icon: "file:tiktok.png",
     description: "Choose a sticker from the catalog and wait for confirmation",
     defaults: { name: "Send Sticker" },
     inputs: ["main"],

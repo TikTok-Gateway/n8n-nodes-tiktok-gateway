@@ -115,7 +115,7 @@ interface Operation {
   state: string;
   reason?: string;
   messageId?: string;
-  tiktokRejection?: { status?: number; check?: number };
+  tiktokRejection?: { status?: number; check?: number; businessCode?: number };
 }
 function operation(
   ctx: Context,
@@ -150,6 +150,7 @@ export async function execute(
 ): Promise<INodeExecutionData[][]> {
   const input = this.getInputData();
   const out: INodeExecutionData[] = [];
+  const skipped: INodeExecutionData[] = [];
   for (let i = 0; i < input.length; i++) {
     const options = this.getNodeParameter("options", i, {}) as IDataObject;
     const recipient = this.getNodeParameter("recipient", i);
@@ -219,14 +220,45 @@ export async function execute(
         );
       }
     }
+    if (op.state === "failed" && op.reason === "recipient_unavailable") {
+      // Keep the transport result honest; only the workflow outcome is a skip.
+      const { messageId: _previousMessageId, ...data } = input[i].json;
+      const codes = Object.fromEntries(
+        ["status", "check", "businessCode"].flatMap((key) => {
+          const value =
+            op.tiktokRejection?.[
+              key as keyof NonNullable<Operation["tiktokRejection"]>
+            ];
+          return Number.isSafeInteger(value) && Number(value) >= 0
+            ? [[key, value]]
+            : [];
+        }),
+      );
+      skipped.push({
+        ...input[i],
+        json: {
+          ...data,
+          userId: recipient,
+          eventId,
+          operationId: op.operationId,
+          state: op.state,
+          outcome: "skipped",
+          reason: op.reason,
+          tiktokRejection: codes,
+        },
+        pairedItem: { item: i },
+      });
+      continue;
+    }
     if (op.state !== "succeeded") {
       const reason =
         typeof op.reason === "string" &&
         /^[a-z][a-z0-9_]{0,100}$/.test(op.reason)
           ? op.reason
           : "unknown";
-      const codes = ["status", "check"].flatMap((k) => {
-        const v = op.tiktokRejection?.[k as "status" | "check"];
+      const codes = ["status", "check", "businessCode"].flatMap((k) => {
+        const v =
+          op.tiktokRejection?.[k as "status" | "check" | "businessCode"];
         return Number.isSafeInteger(v) && Number(v) >= 0 ? [`${k}=${v}`] : [];
       });
       fail(
@@ -248,7 +280,7 @@ export async function execute(
       pairedItem: { item: i },
     });
   }
-  return [out];
+  return [out, skipped];
 }
 export async function getStickers(this: ILoadOptionsFunctions) {
   const data = (await request(this, "GET", "/v1/stickers")) as {

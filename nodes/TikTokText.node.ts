@@ -16,7 +16,8 @@ export class TikTokText implements INodeType {
     description: "Send a text message and wait for confirmation",
     defaults: { name: "Send Text" },
     inputs: ["main"],
-    outputs: ["main"],
+    outputs: ["main", "main"],
+    outputNames: ["Sent", "Skipped"],
     credentials: shared.credentials,
     properties: [
       ...shared.common,

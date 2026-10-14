@@ -82,6 +82,8 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   emit('normal');until(lambda:complete('normal'));emit('normal');time.sleep(3);assert len(ops('normal'))==2
   for event in ['failed','uncertain']:
    emit(event);until(lambda:ops(event) and ops(event)[0]['state']==event);time.sleep(2);assert len(ops(event))==1
+  for event in ['recipient-7202','recipient-7409']:
+   emit(event);until(lambda:ops(event) and ops(event)[0]['state']=='failed');time.sleep(2);assert len(ops(event))==1
   emit('restart');until(lambda:ops('restart') and ops('restart')[0]['polls']>=1)
   run('docker','kill',n8n);run('docker','start',n8n);nurl='http://'+run('docker','port',n8n,'5678/tcp');until(lambda:request(nurl,'/healthz/readiness'));until(webhook_ready)
   emit('restart');until(lambda:complete('restart'));assert len(ops('restart'))==2
@@ -99,6 +101,10 @@ with tempfile.TemporaryDirectory(prefix='tiktok-package-smoke-') as directory:
   assert statuses.get('success',0)>=4,statuses
   rows='\n'.join(str(row) for row in db.execute('SELECT data FROM execution_data'))
   assert 'tiktok_rejected_send' in rows and '7170' in rows and 'send_result_unknown' in rows
+  for event in ['recipient-7202','recipient-7409']:
+   matches=list(db.execute("SELECT e.status,d.data FROM execution_entity e JOIN execution_data d ON e.id=d.executionId WHERE d.data LIKE ?",('%'+event+'%',)))
+   assert len(matches)==1 and matches[0][0]=='success',matches
+   assert 'skipped' in matches[0][1] and 'recipient_unavailable' in matches[0][1]
   assert 'smoke-api' not in rows and 'smoke-hook' not in rows
   print('PASS: Events + Get Messages discovery; incoming pagination, ordinary-chat block and duplicate reply; npm tarball discovery; webhook 401/400; text + sticker; duplicate keys; failed/uncertain block; active-poll crash + replay; persisted Wait restart; no resume; saved execution diagnostics; no tokens. Statuses:',statuses)
  except Exception as e:

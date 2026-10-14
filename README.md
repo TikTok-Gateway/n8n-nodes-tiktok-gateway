@@ -15,7 +15,7 @@ and the inactive [strict example](examples/welcome-reply.json).
 
 `New Follower → Wait → Send Text → Send Sticker`
 
-Both send nodes return only after the gateway reports `succeeded`. Failed, uncertain, unknown, malformed, and timed-out operations stop the node. Keep n8n's default **Stop Workflow** error behavior; enabling Continue On Fail changes the workflow's behavior. Retry On Fail preserves the same key.
+Both send nodes have **Sent** (output 0) and **Skipped** (output 1). Sent emits only after confirmed `succeeded`; keep the sticker connected to this output. A terminal `failed` operation with reason `recipient_unavailable` (including recipient denials 7202/7409) emits on Skipped without failing the workflow or retrying the send. The item retains the operation ID, actual gateway state, sanitized rejection codes and `outcome: skipped`; it does not carry a stale message ID. Leave Skipped unconnected to stop that branch normally. Other failed, uncertain, unknown, malformed, and timed-out operations still stop the node. Keep n8n's default **Stop Workflow** error behavior; enabling Continue On Fail changes the workflow's behavior. Retry On Fail preserves the same key.
 
 ## Compatibility and installation
 

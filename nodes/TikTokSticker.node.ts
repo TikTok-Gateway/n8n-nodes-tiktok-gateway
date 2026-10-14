@@ -16,7 +16,8 @@ export class TikTokSticker implements INodeType {
     description: "Choose a sticker from the catalog and wait for confirmation",
     defaults: { name: "Send Sticker" },
     inputs: ["main"],
-    outputs: ["main"],
+    outputs: ["main", "main"],
+    outputNames: ["Sent", "Skipped"],
     credentials: shared.credentials,
     properties: [
       ...shared.common,

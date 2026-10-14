@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- Add Sent and Skipped outputs to both send nodes. Recipient unavailability is an expected skip, while unexpected failures still fail the workflow.
+- Keep the original success output, idempotency keys, and gateway operation state unchanged; no sticker follows a skipped text.
+- Include sanitized businessCode in diagnostics.
+
+
 ## 0.3.1
 
 - Show saved sticker names and stable IDs from the persistent gateway catalogue.

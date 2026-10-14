@@ -229,3 +229,90 @@ test("migration preserves IDs, credentials, connections, message and explicit ke
     "welcome-v1:text-1",
   );
 });
+
+test("recipient unavailability uses only Skipped for text and stickers, preserving keys", async () => {
+  const { TikTokSticker } = require("../dist/nodes/TikTokSticker.node");
+  for (const Node of [TikTokText, TikTokSticker]) {
+    for (const code of [undefined, 7202, 7409]) {
+      const calls = [];
+      const ctx = context(
+        {
+          operationId: "op",
+          state: "failed",
+          reason: "recipient_unavailable",
+          tiktokRejection: code
+            ? { status: 3, check: 2, businessCode: code }
+            : undefined,
+        },
+        calls,
+      );
+      const get = ctx.getNodeParameter;
+      ctx.getNodeParameter = (name) => (name === "stickerId" ? "1" : get(name));
+      ctx.getInputData = () => [
+        {
+          json: {
+            eventId: "event-1",
+            userId: "200",
+            messageId: "old-incoming",
+          },
+        },
+      ];
+      const result = await new Node().execute.call(ctx);
+      assert.equal(result[0].length, 0);
+      assert.equal(result[1].length, 1);
+      const item = result[1][0];
+      assert.equal(item.json.outcome, "skipped");
+      assert.equal(item.json.state, "failed");
+      assert.equal(item.json.reason, "recipient_unavailable");
+      assert.equal(item.json.messageId, undefined);
+      assert.equal(item.json.tiktokRejection.businessCode, code);
+      assert.equal(item.pairedItem.item, 0);
+      assert.equal(calls.length, 1);
+      await new Node().execute.call(ctx);
+      assert.equal(
+        calls[0].headers["Idempotency-Key"],
+        calls[1].headers["Idempotency-Key"],
+      );
+    }
+  }
+});
+test("skip is exact: uncertain or unknown denial never turns into a successful workflow", async () => {
+  for (const operation of [
+    { state: "uncertain", reason: "recipient_unavailable" },
+    {
+      state: "failed",
+      reason: "tiktok_rejected_send",
+      tiktokRejection: { businessCode: 7202 },
+    },
+    { state: "failed", reason: "recipient_unavailable_extra" },
+  ])
+    await assert.rejects(() =>
+      new TikTokText().execute.call(
+        context({ operationId: "op", ...operation }, []),
+      ),
+    );
+});
+test("mixed recipients preserve item pairing and separate Sent from Skipped", async () => {
+  const ctx = context(null, []);
+  ctx.getInputData = () =>
+    [0, 1, 2].map((i) => ({
+      json: { eventId: "e" + i, userId: String(200 + i) },
+    }));
+  const get = ctx.getNodeParameter;
+  ctx.getNodeParameter = (name, i) =>
+    name === "recipient" ? String(200 + i) : get(name);
+  ctx.helpers.httpRequest = async (r) => ({
+    operationId: "op" + r.body.recipientUserId,
+    state: r.body.recipientUserId === "201" ? "failed" : "succeeded",
+    reason: "recipient_unavailable",
+  });
+  const [sent, skipped] = await new TikTokText().execute.call(ctx);
+  assert.deepEqual(
+    sent.map((x) => x.pairedItem.item),
+    [0, 2],
+  );
+  assert.deepEqual(
+    skipped.map((x) => x.pairedItem.item),
+    [1],
+  );
+});

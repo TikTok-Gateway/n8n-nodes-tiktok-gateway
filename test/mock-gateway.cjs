@@ -85,7 +85,18 @@ http
     );
     if (op) {
       op.polls++;
-      if (op.key.startsWith("failed:")) {
+      if (
+        op.key.startsWith("recipient-7202:") ||
+        op.key.startsWith("recipient-7409:")
+      ) {
+        op.state = "failed";
+        op.reason = "recipient_unavailable";
+        op.tiktokRejection = {
+          status: 3,
+          check: 2,
+          businessCode: op.key.startsWith("recipient-7202:") ? 7202 : 7409,
+        };
+      } else if (op.key.startsWith("failed:")) {
         op.state = "failed";
         op.reason = "tiktok_rejected_send";
         op.tiktokRejection = { status: 3, check: 7170 };

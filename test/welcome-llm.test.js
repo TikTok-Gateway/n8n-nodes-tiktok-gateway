@@ -27,6 +27,7 @@ const source = (id) => ({
         ask_subscription: "configured yes",
         explain_channel: "configured no",
         bot_question: "configured bot",
+        subscription_confirmed: "Легааа)",
       },
     },
     classificationContext: "{}",
@@ -121,10 +122,12 @@ test("workflow keeps one Code node, native AI, result gate and history recheck",
   );
   assert.equal(
     workflow.connections["History Unchanged"].main[0][0].node,
-    "Your Reply",
+    "Not Closed Before Send",
   );
   assert.equal(
-    node("Your Reply").parameters.options.actionKey,
+    expression(node("Your Reply").parameters.options.actionKey)({
+      action: "ask_subscription",
+    }),
     "welcome-first-reply-v1",
   );
   assert.equal(node("Basic LLM Chain").parameters.hasOutputParser, true);
@@ -168,9 +171,13 @@ test("recheck rejects new messages, changed content and incomplete history", () 
 });
 
 const configRows = () =>
-  ["welcomeText", "ask_subscription", "explain_channel", "bot_question"].map(
-    (name) => ({ name, message: "Text for " + name }),
-  );
+  [
+    "welcomeText",
+    "ask_subscription",
+    "explain_channel",
+    "bot_question",
+    "subscription_confirmed",
+  ].map((name) => ({ name, message: "Text for " + name }));
 test("both workflows use shared table messages, preserving exact text and event data", () => {
   const sender = require("../examples/welcome.json");
   const lookup = node("Shared Messages");
@@ -186,7 +193,7 @@ test("both workflows use shared table messages, preserving exact text and event 
     lookup.parameters.filters.conditions.map((c) => c.keyValue),
     configRows().map((r) => r.name),
   );
-  assert.equal(lookup.parameters.limit, 5);
+  assert.equal(lookup.parameters.limit, 6);
   const event = { userId: "123", eventId: "456", message: { text: "да" } };
   const rows = configRows();
   rows[0].message = " Точный welcome ❤️\n";
@@ -255,4 +262,106 @@ test("welcome-only guard remains independent of response configuration", () => {
     [3, 1],
   ])
     assert.equal(run(value, count), false);
+});
+
+test("subscription confirmation uses configured text and its own deduplication action", () => {
+  for (const subscriptionOnly of [false, true]) {
+    const original = source("alice");
+    original.json.subscriptionOnly = subscriptionOnly;
+    const out = run([response(decision("subscription_confirmed"))], [original]);
+    assert.equal(out[0].json.replyText, "Легааа)");
+    assert.equal(out[0].json.userId, "alice");
+    assert.equal(
+      expression(node("Your Reply").parameters.options.actionKey)(out[0].json),
+      "welcome-subscription-confirmed-v1",
+    );
+    if (subscriptionOnly)
+      for (const intent of [
+        "ask_subscription",
+        "explain_channel",
+        "bot_question",
+      ])
+        assert.deepEqual(run([response(decision(intent))], [original]), []);
+  }
+  for (const extra of [{ unambiguous: false }, { onlyRelevant: false }])
+    assert.deepEqual(
+      run([response(decision("subscription_confirmed", extra))]),
+      [],
+    );
+});
+
+test("subscription confirmation reads edited table text and rejects empty configuration", () => {
+  const original = source("alice");
+  original.json.settings.replies.subscription_confirmed =
+    "Новое спасибо за подписку";
+  assert.equal(
+    run([response(decision("subscription_confirmed"))], [original])[0].json
+      .replyText,
+    "Новое спасибо за подписку",
+  );
+  for (const value of ["", "  ", undefined, null]) {
+    original.json.settings.replies.subscription_confirmed = value;
+    assert.deepEqual(
+      run([response(decision("subscription_confirmed"))], [original]),
+      [],
+    );
+  }
+});
+
+test("classification distinguishes an outgoing channel invitation from user text and other replies", () => {
+  const input = expression(node("Basic LLM Chain").parameters.text);
+  const settings = {
+    replies: { explain_channel: "Here is my channel; subscribe" },
+  };
+  const make = (messages) =>
+    JSON.parse(
+      input({ subscriptionOnly: true, settings, history: { messages } }),
+    );
+  const row = (direction, text, type = "text") => ({ direction, text, type });
+  assert.equal(
+    make([row("incoming", settings.replies.explain_channel)]).channelExplained,
+    false,
+  );
+  assert.equal(
+    make([row("outgoing", "Are you subscribed?")]).channelExplained,
+    false,
+  );
+  assert.equal(
+    make([row("outgoing", "I am not a bot")]).channelExplained,
+    false,
+  );
+  assert.equal(
+    make([row("outgoing", settings.replies.explain_channel, "sticker")])
+      .channelExplained,
+    false,
+  );
+  const result = make([
+    row("outgoing", settings.replies.explain_channel),
+    row("incoming", "Могу подписаться"),
+  ]);
+  assert.equal(result.channelExplained, true);
+  assert.equal(result.messages.at(-1).text, "Могу подписаться");
+});
+
+test("subscription question permits one explanation with a separate idempotency key", () => {
+  const original = source("alice");
+  original.json.subscriptionOnly = true;
+  original.json.allowChannelExplanation = true;
+  const result = run([response(decision("explain_channel"))], [original]);
+  assert.equal(result.length, 1);
+  const key = expression(node("Your Reply").parameters.options.actionKey);
+  assert.equal(key(result[0].json), "welcome-explain-after-subscription-v1");
+  assert.equal(key({ action: "ask_subscription" }), "welcome-first-reply-v1");
+  assert.equal(key({ action: "explain_channel" }), "welcome-first-reply-v1");
+  assert.equal(
+    key({ action: "subscription_confirmed" }),
+    "welcome-subscription-confirmed-v1",
+  );
+  for (const intent of ["ask_subscription", "bot_question", "ignore"])
+    assert.deepEqual(run([response(decision(intent))], [original]), []);
+  original.json.allowChannelExplanation = false;
+  assert.deepEqual(
+    run([response(decision("explain_channel"))], [original]),
+    [],
+  );
 });

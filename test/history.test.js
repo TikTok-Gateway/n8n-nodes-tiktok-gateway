@@ -346,3 +346,163 @@ test("all events of a first-reply burst use the same outgoing idempotency group"
     "={{ $json.replyGroupKey }}",
   );
 });
+
+test("subscription can follow every configured automatic reply, but requires welcome", () => {
+  const replies = {
+    ask_subscription: "Подписан?",
+    explain_channel: "Вот мой канал",
+    bot_question: "Нет, это я",
+  };
+  const run = (messages, current) =>
+    new Function("$input", gateCode)({
+      all: () => [
+        {
+          json: {
+            ...event,
+            messageId: current.messageId,
+            message: current,
+            history: { ...history, messages },
+            settings: { welcomeText: welcome, replies },
+          },
+        },
+      ],
+    });
+  const confirmation = {
+    ...reply,
+    messageId: "50",
+    text: "уже подписался",
+    sentAt: "2026-10-13T10:04:00Z",
+  };
+  const direct = run([first, confirmation], confirmation)[0].json;
+  assert.equal(direct.subscriptionOnly, false);
+  for (const text of Object.values(replies)) {
+    const automatic = {
+      ...first,
+      messageId: "40",
+      text,
+      sentAt: "2026-10-13T10:03:00Z",
+    };
+    const messages = [first, reply, automatic, confirmation];
+    const result = run(messages, confirmation)[0].json;
+    assert.equal(result.subscriptionOnly, true);
+    assert.equal(
+      result.allowChannelExplanation,
+      text === replies.ask_subscription,
+    );
+    assert.equal(result.replyGroupKey, direct.replyGroupKey);
+    assert.deepEqual(run(messages, reply), []);
+    assert.deepEqual(run(messages.slice(1), confirmation), []);
+    for (const invalidText of ["manual reply", "Легааа)"])
+      assert.deepEqual(
+        run(
+          [first, reply, { ...automatic, text: invalidText }, confirmation],
+          confirmation,
+        ),
+        [],
+      );
+    assert.deepEqual(
+      run(
+        [
+          first,
+          reply,
+          automatic,
+          { ...confirmation, replyToMessageId: "unknown" },
+        ],
+        confirmation,
+      ),
+      [],
+    );
+  }
+});
+
+test("reply policy fixtures reach classification while incomplete, manual and repeated conversations stop", () => {
+  const cases = require("./fixtures/reply-policy.json");
+  const replies = {
+    ask_subscription: "Подписан?",
+    explain_channel: "Вот мой канал",
+    bot_question: "Неа)))",
+    subscription_confirmed: "Легааа)",
+  };
+  for (const [key, texts, kind] of cases) {
+    const rows = [first];
+    if (kind === "full") {
+      rows.push(
+        reply,
+        {
+          ...first,
+          messageId: "40",
+          sentAt: "2026-10-13T10:03:00Z",
+          text: replies.ask_subscription,
+        },
+        {
+          ...reply,
+          messageId: "41",
+          sentAt: "2026-10-13T10:03:10Z",
+          text: "Нет, могу подписаться",
+        },
+        {
+          ...first,
+          messageId: "42",
+          sentAt: "2026-10-13T10:04:00Z",
+          text: replies.explain_channel,
+        },
+      );
+    }
+    if (kind && kind !== "gaps" && kind !== "full")
+      rows.push(reply, {
+        ...first,
+        messageId: "40",
+        sentAt: "2026-10-13T10:03:00Z",
+        text:
+          replies[kind] ||
+          (kind === "repeat" ? replies.subscription_confirmed : "Ручной ответ"),
+      });
+    rows.push(
+      ...texts.map((text, i) => ({
+        ...reply,
+        text,
+        messageId: String(50 + i),
+        sentAt: `2026-10-13T10:${String(5 + i).padStart(2, "0")}:00Z`,
+      })),
+    );
+    const current = rows.at(-1);
+    const h = { ...history, messages: rows, hasGaps: kind === "gaps" };
+    const ev = { ...event, messageId: current.messageId, message: current };
+    assert.equal(
+      firstWelcomeReply(h, ev, welcome, replies),
+      !["repeat", "manual", "gaps"].includes(kind),
+      key,
+    );
+    if (kind === "full") {
+      const result = new Function("$input", gateCode)({
+        all: () => [
+          {
+            json: {
+              ...ev,
+              history: h,
+              settings: { welcomeText: welcome, replies },
+            },
+          },
+        ],
+      });
+      assert.equal(
+        result[0].json.allowChannelExplanation,
+        false,
+        key + " cannot repeat explanation",
+      );
+    }
+    if (texts.length > 1) {
+      const stale = rows.at(-2);
+      assert.equal(
+        firstWelcomeReply(
+          h,
+          { ...event, messageId: stale.messageId, message: stale },
+          welcome,
+          replies,
+        ),
+        false,
+        key + " stale event",
+      );
+    }
+  }
+});
